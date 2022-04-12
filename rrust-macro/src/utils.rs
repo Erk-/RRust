@@ -35,4 +35,3 @@ pub fn delocal_ident(expr: &syn::Expr) -> Option<syn::Ident> {
     };
     ident
 }
-

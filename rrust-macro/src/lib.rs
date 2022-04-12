@@ -1,6 +1,6 @@
-mod utils;
 mod forward;
 mod reverse;
+mod utils;
 
 #[proc_macro]
 pub fn forward(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

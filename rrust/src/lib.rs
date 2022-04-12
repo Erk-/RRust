@@ -136,4 +136,3 @@ macro_rules! delocal {
         drop($name);
     };
 }
-

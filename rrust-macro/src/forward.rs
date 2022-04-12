@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{Token, fold::Fold};
+use syn::{fold::Fold, Token};
 
-use crate::utils::{local_ident, macro_ident_expr, delocal_ident};
+use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
 
 pub fn forward_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
@@ -11,14 +11,12 @@ pub fn forward_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let block = visitor.fold_block(input);
 
     visitor.delocal_check();
-    
+
     let mut output = TokenStream::new();
 
     let brace = syn::token::Brace::default();
 
-    brace.surround(&mut output, |output| {
-        block.to_tokens(output)
-    });
+    brace.surround(&mut output, |output| block.to_tokens(output));
 
     proc_macro::TokenStream::from(output)
 }
@@ -131,19 +129,19 @@ impl syn::fold::Fold for FVisitor {
     }
 
     fn fold_block(&mut self, mut block: syn::Block) -> syn::Block {
-        // println!("[{}] block: {}", self.level, block.clone().into_token_stream()); 
+        // println!("[{}] block: {}", self.level, block.clone().into_token_stream());
         let mut block_visitor = FVisitor::new();
-        
+
         block_visitor.level = self.level + 1;
         block.stmts.iter_mut().for_each(|n| {
-             *n = block_visitor.fold_stmt(n.clone());
+            *n = block_visitor.fold_stmt(n.clone());
         });
 
         block_visitor.delocal_check();
-        
+
         // let c = block.clone().into_token_stream();
         // println!("CODE [{}]: {}", block_visitor.level, c);
-        
+
         block
     }
 }

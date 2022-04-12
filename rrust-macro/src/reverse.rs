@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{fold::Fold, parse::Parser};
 
-use crate::utils::{local_ident, macro_ident_expr, delocal_ident};
+use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
 
 pub fn reverse_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
@@ -16,9 +16,7 @@ pub fn reverse_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let brace = syn::token::Brace::default();
 
-    brace.surround(&mut output, |output| {
-        block.to_tokens(output)
-    });
+    brace.surround(&mut output, |output| block.to_tokens(output));
 
     proc_macro::TokenStream::from(output)
 }
@@ -77,7 +75,7 @@ impl RVisitor {
                 let di = delocal_ident(&expr).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
                     self.delocal_list.remove(index);
-                    return (true, delocal_val(expr))
+                    return (true, delocal_val(expr));
                 } else {
                     panic!("Attempt to delocal a non local variable: {}", di);
                 }
@@ -108,14 +106,14 @@ impl Fold for RVisitor {
 
     fn fold_block(&mut self, mut block: syn::Block) -> syn::Block {
         let mut block_visitor = RVisitor::new();
-        
+
         block.stmts.iter_mut().for_each(|n| {
-             *n = block_visitor.fold_stmt(n.clone());
+            *n = block_visitor.fold_stmt(n.clone());
         });
         block.stmts.reverse();
 
         block_visitor.delocal_check();
-        
+
         block
     }
 }
@@ -135,7 +133,6 @@ pub fn delocal_val(expr: syn::Expr) -> syn::Expr {
         let mut #name = #val
     }
 }
-
 
 use syn::{BinOp, Expr, ExprAssignOp, ExprMacro};
 
