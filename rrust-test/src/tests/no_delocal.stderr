@@ -1,0 +1,23 @@
+error: proc macro panicked
+ --> src/tests/no_delocal.rs:3:1
+  |
+3 | / rfn!(NoDelocal, (x1: &mut i32), {
+4 | |     let i = 1
+5 | |     *x1 += i;
+6 | | });
+  | |__^
+  |
+  = help: message: The following local(s) need to be consumed by delocal!: ["i"]
+  = note: this error originates in the macro `rfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: proc macro panicked
+ --> src/tests/no_delocal.rs:3:1
+  |
+3 | / rfn!(NoDelocal, (x1: &mut i32), {
+4 | |     let i = 1
+5 | |     *x1 += i;
+6 | | });
+  | |__^
+  |
+  = help: message: The following local(s) need to be consumed by delocal!: ["i"]
+  = note: this error originates in the macro `rfn` (in Nightly builds, run with -Z macro-backtrace for more info)

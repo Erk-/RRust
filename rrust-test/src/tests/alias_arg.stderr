@@ -1,0 +1,17 @@
+error[E0499]: cannot borrow `x` as mutable more than once at a time
+  --> src/tests/alias_arg.rs:11:31
+   |
+11 |     AliasArg::forward(&mut x, &mut x);
+   |     ----------------- ------  ^^^^^^ second mutable borrow occurs here
+   |     |                 |
+   |     |                 first mutable borrow occurs here
+   |     first borrow later used by call
+
+error[E0499]: cannot borrow `x` as mutable more than once at a time
+  --> src/tests/alias_arg.rs:12:33
+   |
+12 |     AliasArg::backwards(&mut x, &mut x);
+   |     ------------------- ------  ^^^^^^ second mutable borrow occurs here
+   |     |                   |
+   |     |                   first mutable borrow occurs here
+   |     first borrow later used by call

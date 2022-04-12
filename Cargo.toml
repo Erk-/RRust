@@ -1,0 +1,6 @@
+[workspace]
+members = [
+        "rrust",
+        "rrust-macro",
+        "rrust-test",
+]
