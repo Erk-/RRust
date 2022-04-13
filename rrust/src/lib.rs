@@ -78,6 +78,15 @@
 //! allowed to be called inside of reversible code, this is a
 //! something that can be changed since non-mutating functions and
 //! methods could be allowed here.
+//!
+//! # Bibliography
+//! The language as it is now is mostly based upon the
+//! [Janus](https://en.wikipedia.org/wiki/Janus_(time-reversible_computing_programming_language))
+//! formalized in the following paper:
+//!
+//! Tetsuo Yokoyama and Robert Glück. 2007. A reversible programming
+//! language and its invertible self-interpreter.
+//! [DOI](https://doi.org/10.1145/1244381.1244404)
 
 /// Create a new reversible function.
 ///
