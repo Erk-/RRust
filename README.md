@@ -62,7 +62,7 @@ expression that does not cause a mutation.
 | Operator | Reverse |
 |----------|---------|
 |  `+=`    |  `-=`   |
-|  `-=`    |  `+=    |
+|  `-=`    |  `+=`   |
 |  `^=`    |  `^=`   |
 
 ## Aliasing
