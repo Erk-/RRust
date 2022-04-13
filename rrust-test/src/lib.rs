@@ -185,7 +185,7 @@ fn test_scary_incorrect() {
 
 #[test]
 fn test_delocal_block() {
-    rfn!(Alias, (arr: &mut [i32]), {
+    rfn!(Alias, (), {
         {
             let i = 42;
             delocal!(i, 42);
