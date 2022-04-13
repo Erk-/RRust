@@ -39,10 +39,13 @@ macro_rules! rif {
                 $then
             };
             assert!($after);
+        } else {
+            assert!(!($after));
         }
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! _reverse_rif {
     ($before:expr, $then:block, $else:block, $after:expr) => {
@@ -64,6 +67,8 @@ macro_rules! _reverse_rif {
                 $then
             };
             assert!($before);
+        } else {
+            assert!(!$before);
         }
     };
 }
