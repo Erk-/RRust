@@ -7,7 +7,7 @@ use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
 pub fn forward_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
 
-    let mut visitor = FVisitor::new();
+    let mut visitor = FFolder::new();
     let block = visitor.fold_block(input);
 
     visitor.delocal_check();
@@ -21,14 +21,14 @@ pub fn forward_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(output)
 }
 
-struct FVisitor {
+struct FFolder {
     pub delocal_list: Vec<syn::Ident>,
     level: u8,
 }
 
-impl FVisitor {
+impl FFolder {
     fn new() -> Self {
-        FVisitor {
+        FFolder {
             delocal_list: Vec::default(),
             level: 0,
         }
@@ -122,13 +122,13 @@ fn fwd_expr(expr: syn::Expr) -> syn::Expr {
     }
 }
 
-impl syn::fold::Fold for FVisitor {
+impl syn::fold::Fold for FFolder {
     fn fold_stmt(&mut self, node: syn::Stmt) -> syn::Stmt {
         self.fwd_stmt(node)
     }
 
     fn fold_block(&mut self, mut block: syn::Block) -> syn::Block {
-        let mut block_visitor = FVisitor::new();
+        let mut block_visitor = FFolder::new();
 
         block_visitor.level = self.level + 1;
         block.stmts.iter_mut().for_each(|n| {

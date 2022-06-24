@@ -7,7 +7,7 @@ use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
 pub fn reverse_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
 
-    let mut visitor = RVisitor::new();
+    let mut visitor = RFolder::new();
     let block = visitor.fold_block(input);
 
     visitor.delocal_check();
@@ -22,13 +22,13 @@ pub fn reverse_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[derive(Default)]
-struct RVisitor {
+struct RFolder {
     pub delocal_list: Vec<syn::Ident>,
 }
 
-impl RVisitor {
+impl RFolder {
     pub fn new() -> Self {
-        RVisitor::default()
+        RFolder::default()
     }
 
     fn reverse_stmt(&mut self, node: syn::Stmt) -> syn::Stmt {
@@ -99,13 +99,13 @@ impl RVisitor {
     }
 }
 
-impl Fold for RVisitor {
+impl Fold for RFolder {
     fn fold_stmt(&mut self, node: syn::Stmt) -> syn::Stmt {
         self.reverse_stmt(node)
     }
 
     fn fold_block(&mut self, mut block: syn::Block) -> syn::Block {
-        let mut block_visitor = RVisitor::new();
+        let mut block_visitor = RFolder::new();
 
         block.stmts.iter_mut().for_each(|n| {
             *n = block_visitor.fold_stmt(n.clone());
