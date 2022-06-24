@@ -61,7 +61,7 @@ impl FFolder {
 
     fn delocal(&mut self, expr: &syn::Expr) {
         if let Some(i) = macro_ident_expr(expr) {
-            let delocal: syn::Ident = syn::parse_quote!{ delocal };
+            let delocal: syn::Ident = syn::parse_quote! { delocal };
             if i == delocal {
                 let di = delocal_ident(expr).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
