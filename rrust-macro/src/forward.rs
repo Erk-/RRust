@@ -61,7 +61,7 @@ impl FVisitor {
 
     fn delocal(&mut self, expr: &syn::Expr) {
         if let Some(i) = macro_ident_expr(expr) {
-            let delocal: syn::Ident = syn::parse_str("delocal").unwrap();
+            let delocal: syn::Ident = syn::parse_quote!{ delocal };
             if i == delocal {
                 let di = delocal_ident(expr).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
@@ -124,12 +124,10 @@ fn fwd_expr(expr: syn::Expr) -> syn::Expr {
 
 impl syn::fold::Fold for FVisitor {
     fn fold_stmt(&mut self, node: syn::Stmt) -> syn::Stmt {
-        // println!("[{}] stmt: {}", self.level, node.clone().into_token_stream());
         self.fwd_stmt(node)
     }
 
     fn fold_block(&mut self, mut block: syn::Block) -> syn::Block {
-        // println!("[{}] block: {}", self.level, block.clone().into_token_stream());
         let mut block_visitor = FVisitor::new();
 
         block_visitor.level = self.level + 1;
@@ -138,9 +136,6 @@ impl syn::fold::Fold for FVisitor {
         });
 
         block_visitor.delocal_check();
-
-        // let c = block.clone().into_token_stream();
-        // println!("CODE [{}]: {}", block_visitor.level, c);
 
         block
     }

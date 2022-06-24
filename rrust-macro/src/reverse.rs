@@ -70,7 +70,7 @@ impl RVisitor {
 
     fn delocal(&mut self, expr: syn::Expr) -> (bool, syn::Expr) {
         if let Some(i) = macro_ident_expr(&expr) {
-            let delocal: syn::Ident = syn::parse_str("delocal").unwrap();
+            let delocal: syn::Ident = syn::parse_quote!{ delocal };
             if i == delocal {
                 let di = delocal_ident(&expr).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
@@ -210,9 +210,9 @@ fn reverse_expr(e: Expr) -> Expr {
             let func = *c.func.clone();
             if let Expr::Path(mut f) = func {
                 if let Some(last) = f.path.segments.pop() {
-                    let forward: syn::PathSegment = syn::parse_str("forward").unwrap();
+                    let forward: syn::PathSegment = syn::parse_quote!{ forward };
                     if last.value().clone() == forward {
-                        let backwards: syn::PathSegment = syn::parse_str("backwards").unwrap();
+                        let backwards: syn::PathSegment = syn::parse_quote!{ backwards };
                         f.path.segments.push(backwards);
                         c.func = Box::new(Expr::Path(f));
                     }
@@ -234,14 +234,14 @@ fn reverse_expr(e: Expr) -> Expr {
         Expr::Macro(ExprMacro { attrs, mac }) => {
             let mut cmac = mac.clone();
             if let Some(i) = mac.path.get_ident() {
-                let rif: syn::Ident = syn::parse_str("rif").unwrap();
-                let rloop: syn::Ident = syn::parse_str("rloop").unwrap();
+                let rif: syn::Ident = syn::parse_quote!{ rif };
+                let rloop: syn::Ident = syn::parse_quote!{ rloop };
                 let ic = i.clone();
                 if ic == rif {
-                    let t: syn::Path = syn::parse_str("::rrust::_reverse_rif").unwrap();
+                    let t: syn::Path = syn::parse_quote!{ ::rrust::_reverse_rif };
                     cmac.path = t;
                 } else if ic == rloop {
-                    let t: syn::Path = syn::parse_str("::rrust::_reverse_rloop").unwrap();
+                    let t: syn::Path = syn::parse_quote!{ ::rrust::_reverse_rloop };
                     cmac.path = t;
                 }
                 Expr::Macro(ExprMacro { attrs, mac: cmac })
