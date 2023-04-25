@@ -5,6 +5,8 @@ you can use it to write a algorithm and then it can run forwards
 as usually, but it can also run in the reverse direction undoing
 everything it just did.
 
+Blog post going into details: https://blog.erk.dev/posts/rrust
+
 # Example
 
 ```rust
