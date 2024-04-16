@@ -115,7 +115,7 @@ fn fwd_expr(expr: syn::Expr) -> syn::Expr {
             right,
         }) => {
             let cmp: syn::Stmt = syn::parse_quote! {
-                if core::ptr::eq(&(#left), &(#right)) {
+                if core::ptr::addr_eq(&(#left), &(#right)) {
                     panic!("{}:{}: Lefthand and righthand are aliases of each other", file!(), line!());
                 }
             };
