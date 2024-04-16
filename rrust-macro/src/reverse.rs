@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{fold::Fold, parse::Parser};
+use syn::{fold::Fold, parse::Parser, ExprBinary, StmtMacro};
 
-use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
+use crate::utils::{delocal_ident_stmt, local_ident};
 
 pub fn reverse_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
@@ -35,14 +35,57 @@ impl RFolder {
         match node {
             syn::Stmt::Local(l) => self.local(l),
             syn::Stmt::Item(_) => panic!("Not yet implemented: Stmt::Item"),
-            syn::Stmt::Expr(e) => self.expr(e),
-            syn::Stmt::Semi(e, s) => self.semi(e, s),
+            syn::Stmt::Expr(e, s) => {
+                if let Some(s) = s {
+                    self.semi(e, s)
+                } else {
+                    self.expr(e)
+                }
+            }
+            syn::Stmt::Macro(StmtMacro {
+                attrs,
+                mac,
+                semi_token,
+            }) => {
+                if self.delocal_mac(&mac) {
+                    return delocal_val_mac(mac);
+                }
+
+                let mut cmac = mac.clone();
+                if let Some(i) = mac.path.get_ident() {
+                    let rif: syn::Ident = syn::parse_quote! { rif };
+                    let rloop: syn::Ident = syn::parse_quote! { rloop };
+                    let ic = i.clone();
+                    if ic == rif {
+                        let t: syn::Path = syn::parse_quote! { ::rrust::_reverse_rif };
+                        cmac.path = t;
+                    } else if ic == rloop {
+                        let t: syn::Path = syn::parse_quote! { ::rrust::_reverse_rloop };
+                        cmac.path = t;
+                    }
+                    syn::Stmt::Macro(StmtMacro {
+                        attrs,
+                        mac: cmac,
+                        semi_token,
+                    })
+                } else {
+                    syn::Stmt::Macro(StmtMacro {
+                        attrs,
+                        mac: cmac,
+                        semi_token,
+                    })
+                }
+            }
         }
     }
 
     fn local(&mut self, local: syn::Local) -> syn::Stmt {
         let i = local_ident(&local);
-        let expr = local.init.unwrap().1;
+        let init = local.init.unwrap();
+        if init.diverge.is_some() {
+            panic!("Diverging locals are not supported");
+        }
+        let expr = init.expr;
         self.delocal_list.push(i.clone());
         let m: syn::Stmt = syn::parse_quote! {
             ::rrust::delocal!(#i, #expr);
@@ -51,37 +94,27 @@ impl RFolder {
     }
 
     fn expr(&mut self, expr: syn::Expr) -> syn::Stmt {
-        let (b, expr) = self.delocal(expr);
-        if b {
-            syn::Stmt::Expr(expr)
-        } else {
-            syn::Stmt::Expr(reverse_expr(self.fold_expr(expr)))
-        }
+        syn::Stmt::Expr(reverse_expr(self.fold_expr(expr)), None)
     }
 
     fn semi(&mut self, expr: syn::Expr, semi: syn::Token![;]) -> syn::Stmt {
-        let (b, expr) = self.delocal(expr);
-        if b {
-            syn::Stmt::Semi(expr, semi)
-        } else {
-            syn::Stmt::Semi(reverse_expr(self.fold_expr(expr)), semi)
-        }
+        syn::Stmt::Expr(reverse_expr(self.fold_expr(expr)), Some(semi))
     }
 
-    fn delocal(&mut self, expr: syn::Expr) -> (bool, syn::Expr) {
-        if let Some(i) = macro_ident_expr(&expr) {
+    fn delocal_mac(&mut self, mac: &syn::Macro) -> bool {
+        if let Some(ident) = mac.path.get_ident().cloned() {
             let delocal: syn::Ident = syn::parse_quote! { delocal };
-            if i == delocal {
-                let di = delocal_ident(&expr).unwrap();
+            if ident == delocal {
+                let di = delocal_ident_stmt(mac.clone()).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
                     self.delocal_list.remove(index);
-                    return (true, delocal_val(expr));
+                    return true;
                 } else {
                     panic!("Attempt to delocal a non local variable: {}", di);
                 }
             }
         }
-        (false, expr)
+        false
     }
 
     fn delocal_check(&self) {
@@ -118,23 +151,19 @@ impl Fold for RFolder {
     }
 }
 
-pub fn delocal_val(expr: syn::Expr) -> syn::Expr {
-    let punct: syn::punctuated::Punctuated<syn::Expr, syn::Token![,]> = match expr {
-        syn::Expr::Macro(syn::ExprMacro { attrs: _, mac }) => {
-            (|input: &syn::parse::ParseBuffer| syn::punctuated::Punctuated::parse_terminated(input))
-                .parse2(mac.tokens)
-                .unwrap()
-        }
-        _ => panic!(),
-    };
+pub fn delocal_val_mac(mac: syn::Macro) -> syn::Stmt {
+    let punct: syn::punctuated::Punctuated<syn::Expr, syn::Token![,]> =
+        (|input: &syn::parse::ParseBuffer| syn::punctuated::Punctuated::parse_terminated(input))
+            .parse2(mac.tokens)
+            .unwrap();
     let name = punct.first().unwrap();
     let val = punct.last().unwrap();
     syn::parse_quote! {
-        let mut #name = #val
+        let mut #name = #val;
     }
 }
 
-use syn::{BinOp, Expr, ExprAssignOp, ExprMacro};
+use syn::{BinOp, Expr, ExprMacro};
 
 fn reverse_bin_op(bin_op: BinOp) -> BinOp {
     match bin_op {
@@ -156,16 +185,17 @@ fn reverse_bin_op(bin_op: BinOp) -> BinOp {
         BinOp::Ne(_) => panic!("disallowed binary operator. {}", line!()),
         BinOp::Ge(_) => panic!("disallowed binary operator. {}", line!()),
         BinOp::Gt(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::AddEq(_) => BinOp::SubEq(syn::token::SubEq::default()),
-        BinOp::SubEq(_) => BinOp::AddEq(syn::token::AddEq::default()),
-        BinOp::MulEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::DivEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::RemEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::BitXorEq(x) => BinOp::BitXorEq(x),
-        BinOp::BitAndEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::BitOrEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::ShlEq(_) => panic!("disallowed binary operator. {}", line!()),
-        BinOp::ShrEq(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::AddAssign(_) => BinOp::SubAssign(syn::token::MinusEq::default()),
+        BinOp::SubAssign(_) => BinOp::AddAssign(syn::token::PlusEq::default()),
+        BinOp::MulAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::DivAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::RemAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::BitXorAssign(x) => BinOp::BitXorAssign(x),
+        BinOp::BitAndAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::BitOrAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::ShlAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        BinOp::ShrAssign(_) => panic!("disallowed binary operator. {}", line!()),
+        _ => todo!(),
     }
 }
 
@@ -173,7 +203,7 @@ fn reverse_expr(e: Expr) -> Expr {
     match e {
         Expr::Array(_) => panic!("Not yet implemented {}", line!()),
         Expr::Assign(_) => panic!("Not yet implemented {}", line!()),
-        Expr::AssignOp(ExprAssignOp {
+        Expr::Binary(ExprBinary {
             attrs,
             left,
             op,
@@ -185,7 +215,7 @@ fn reverse_expr(e: Expr) -> Expr {
                 }
             };
 
-            let aop = Expr::AssignOp(ExprAssignOp {
+            let aop = Expr::Binary(ExprBinary {
                 attrs,
                 left,
                 op: reverse_bin_op(op),
@@ -202,9 +232,7 @@ fn reverse_expr(e: Expr) -> Expr {
         }
         Expr::Async(_) => panic!("Not yet implemented {}", line!()),
         Expr::Await(_) => panic!("Not yet implemented {}", line!()),
-        Expr::Binary(_) => panic!("Not yet implemented {}", line!()),
         Expr::Block(b) => syn::Expr::Block(b),
-        Expr::Box(_) => panic!("Not yet implemented {}", line!()),
         Expr::Break(_) => panic!("Not yet implemented {}", line!()),
         Expr::Call(mut c) => {
             let func = *c.func.clone();
@@ -261,7 +289,6 @@ fn reverse_expr(e: Expr) -> Expr {
         Expr::Try(_) => panic!("Not yet implemented {}", line!()),
         Expr::TryBlock(_) => panic!("Not yet implemented {}", line!()),
         Expr::Tuple(_) => panic!("Not yet implemented {}", line!()),
-        Expr::Type(_) => panic!("Not yet implemented {}", line!()),
         Expr::Unary(_) => panic!("Not yet implemented {}", line!()),
         Expr::Unsafe(_) => panic!("Not yet implemented {}", line!()),
         Expr::Verbatim(_) => panic!("Not yet implemented {}", line!()),

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{fold::Fold, Token};
 
-use crate::utils::{delocal_ident, local_ident, macro_ident_expr};
+use crate::utils::{delocal_ident, delocal_ident_stmt, local_ident, macro_ident_expr};
 
 pub fn forward_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input);
@@ -38,8 +38,12 @@ impl FFolder {
         match node {
             syn::Stmt::Local(l) => self.local(l),
             syn::Stmt::Item(_) => todo!(),
-            syn::Stmt::Expr(e) => self.expr(e),
-            syn::Stmt::Semi(e, s) => self.semi(e, s),
+            syn::Stmt::Expr(e, None) => self.expr(e),
+            syn::Stmt::Expr(e, Some(s)) => self.semi(e, s),
+            syn::Stmt::Macro(mac) => {
+                self.delocal_mac(&mac.mac);
+                syn::Stmt::Macro(mac)
+            }
         }
     }
 
@@ -51,12 +55,12 @@ impl FFolder {
 
     fn expr(&mut self, expr: syn::Expr) -> syn::Stmt {
         self.delocal(&expr);
-        syn::Stmt::Expr(fwd_expr(self.fold_expr(expr)))
+        syn::Stmt::Expr(fwd_expr(self.fold_expr(expr)), None)
     }
 
     fn semi(&mut self, expr: syn::Expr, semi: Token![;]) -> syn::Stmt {
         self.delocal(&expr);
-        syn::Stmt::Semi(fwd_expr(self.fold_expr(expr)), semi)
+        syn::Stmt::Expr(fwd_expr(self.fold_expr(expr)), Some(semi))
     }
 
     fn delocal(&mut self, expr: &syn::Expr) {
@@ -64,6 +68,20 @@ impl FFolder {
             let delocal: syn::Ident = syn::parse_quote! { delocal };
             if i == delocal {
                 let di = delocal_ident(expr).unwrap();
+                if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
+                    self.delocal_list.remove(index);
+                } else {
+                    panic!("Attempt to delocal a non local variable: {}", di);
+                }
+            }
+        }
+    }
+
+    fn delocal_mac(&mut self, mac: &syn::Macro) {
+        if let Some(i) = mac.path.get_ident().cloned() {
+            let delocal: syn::Ident = syn::parse_quote! { delocal };
+            if i == delocal {
+                let di = delocal_ident_stmt(mac.clone()).unwrap();
                 if let Some(index) = self.delocal_list.iter().position(|l| *l == di) {
                     self.delocal_list.remove(index);
                 } else {
@@ -90,7 +108,7 @@ impl FFolder {
 
 fn fwd_expr(expr: syn::Expr) -> syn::Expr {
     match expr {
-        syn::Expr::AssignOp(syn::ExprAssignOp {
+        syn::Expr::Binary(syn::ExprBinary {
             attrs,
             left,
             op,
@@ -102,7 +120,7 @@ fn fwd_expr(expr: syn::Expr) -> syn::Expr {
                 }
             };
 
-            let aop = syn::Expr::AssignOp(syn::ExprAssignOp {
+            let aop = syn::Expr::Binary(syn::ExprBinary {
                 attrs,
                 left: left.clone(),
                 op,

@@ -35,3 +35,22 @@ pub fn delocal_ident(expr: &syn::Expr) -> Option<syn::Ident> {
     };
     ident
 }
+
+pub fn delocal_ident_stmt(mac: syn::Macro) -> Option<syn::Ident> {
+    let punct: syn::punctuated::Punctuated<syn::Expr, syn::Token![,]> = {
+        (|input: &syn::parse::ParseBuffer| syn::punctuated::Punctuated::parse_terminated(input))
+            .parse2(mac.tokens.clone())
+            .unwrap()
+    };
+
+    let name = punct.first().unwrap();
+    let ident = match name {
+        syn::Expr::Path(syn::ExprPath {
+            attrs: _,
+            qself: _,
+            path,
+        }) => path.get_ident().cloned(),
+        _ => None,
+    };
+    ident
+}
