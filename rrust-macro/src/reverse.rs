@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{fold::Fold, parse::Parser, ExprBinary, StmtMacro};
+use syn::{fold::Fold, parse::Parser, ExprBinary, ExprMethodCall, StmtMacro};
 
 use crate::utils::{delocal_ident_stmt, local_ident};
 
@@ -278,7 +278,29 @@ fn reverse_expr(e: Expr) -> Expr {
             }
         }
         Expr::Match(_) => panic!("Not yet implemented {}", line!()),
-        Expr::MethodCall(_) => panic!("Not yet implemented {}", line!()),
+        Expr::MethodCall(ExprMethodCall {
+            attrs,
+            receiver,
+            dot_token,
+            method,
+            turbofish,
+            paren_token,
+            args,
+        }) => {
+            //std::slice::swap
+            if method.to_string() == "swap" {
+                return Expr::MethodCall(ExprMethodCall {
+                    attrs,
+                    receiver,
+                    dot_token,
+                    method,
+                    turbofish,
+                    paren_token,
+                    args,
+                });
+            }
+            panic!("Not yet implemented {}", line!())
+        }
         Expr::Paren(_) => panic!("Not yet implemented {}", line!()),
         Expr::Path(_) => panic!("Not yet implemented {}", line!()),
         Expr::Range(_) => panic!("Not yet implemented {}", line!()),

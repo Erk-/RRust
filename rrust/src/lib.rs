@@ -425,7 +425,7 @@ pub use rrust_macro::{forward, reverse};
 macro_rules! delocal {
     ($name:ident, $e:expr) => {
         if $name != $e {
-            panic!("Delocal failed {} != {}", $name, $e);
+            panic!("Delocal failed {:?} != {:?}", $name, $e);
         }
         drop($name);
     };
